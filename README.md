@@ -1,7 +1,7 @@
 ## ❤️ CardioScribe: Interactive Heart Disease Predictor
 
 
-(Replace the URL above with your deployed Streamlit link after you deploy it!)
+#### Link: https://cardioscribe.streamlit.app/
 
 An end-to-end machine learning application that predicts the 10-year risk of heart disease based on user-inputted medical data.
 
