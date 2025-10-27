@@ -15,51 +15,76 @@ except FileNotFoundError:
     print("Error: 'heart.csv' not found. Make sure it's in the same directory.")
     exit()
 
-# 2. Simple Preprocessing
-# The dataset is mostly clean. 'target' is our goal (1 = disease, 0 = no disease)
-# Let's define our features (X) and target (y)
-X = data.drop('target', axis=1)
-y = data['target']
+# --- START NEW FIX SECTION ---
 
-# 3. Split Data (for testing our model)
+# 2. Handle 'sex' column (which we know is 'Male'/'Female')
+data['sex'] = data['sex'].apply(lambda x: 1 if x == 'Male' else 0)
+print("Converted 'sex' column.")
+
+# 3. Define Target (y) and drop non-feature columns
+# We do this BEFORE encoding to make sure we don't encode 'id' or 'dataset'
+y = data['num']
+X = data.drop(['id', 'dataset', 'num'], axis=1)
+print("Target 'y' and features 'X' separated.")
+
+# 4. Find ALL remaining text columns in X and convert them
+# This will find 'cp' (with 'asymptomatic') and any others.
+text_cols = X.select_dtypes(include=['object']).columns
+
+if len(text_cols) > 0:
+    print(f"Converting categorical text columns: {list(text_cols)}")
+    # Use pd.get_dummies to one-hot encode all text columns at once
+    # This creates new columns (e.g., cp_asymptomatic) with 0s and 1s
+    X = pd.get_dummies(X, columns=text_cols, drop_first=True)
+    print("Text columns converted.")
+else:
+    print("No categorical text columns found to convert.")
+
+# --- END NEW FIX SECTION ---
+
+
+# 5. Split Data (This was your original line 28)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 print("Data split complete.")
 
-# 4. Scale Data
-# It's crucial to scale data for many ML models.
-# We will fit the scaler on the training data and save it.
+# 6. Scale Data
 scaler = StandardScaler()
 X_train_scaled = scaler.fit_transform(X_train)
 X_test_scaled = scaler.transform(X_test)
+print("Data scaling complete.")
 
-# 5. Train Model
+# 7. Train Model
 model = RandomForestClassifier(n_estimators=100, random_state=42)
 model.fit(X_train_scaled, y_train)
 print("Model training complete.")
 
-# 6. Evaluate Model (Just for us to see)
+# 8. Evaluate Model (Just for us to see)
 y_pred = model.predict(X_test_scaled)
 print(f"Model Accuracy on Test Set: {accuracy_score(y_test, y_pred) * 100:.2f}%")
 
-# 7. --- IMPORTANT: FINAL PRODUCTION MODEL ---
-# Now, we train the scaler and model on ALL data for the final app.
-# This ensures our app uses the most information possible.
-
-# 7a. Fit the Scaler on ALL X data
+# 9. --- IMPORTANT: FINAL PRODUCTION MODEL ---
+print("Training final model on all data...")
 final_scaler = StandardScaler()
-X_scaled = final_scaler.fit_transform(X)
+X_scaled = final_scaler.fit_transform(X) # X is the final, encoded DataFrame
 print("Final scaler prepared.")
 
-# 7b. Fit the Model on ALL X and y data
 final_model = RandomForestClassifier(n_estimators=100, random_state=42)
 final_model.fit(X_scaled, y)
 print("Final model trained on all data.")
 
-# 8. Save the Model and Scaler
-# These .pkl files are what our app will use
+
+# 10. Save the Model, Scaler, AND Column List
 joblib.dump(final_model, 'model.pkl')
 joblib.dump(final_scaler, 'scaler.pkl')
 
+# --- ADD THIS NEW CODE ---
+import json
+model_columns = list(X.columns)
+with open('model_columns.json', 'w') as f:
+    json.dump(model_columns, f)
+# --- END NEW CODE ---
+
+
 print("---")
-print("Model and scaler saved as 'model.pkl' and 'scaler.pkl'.")
+print("Model, scaler, and column list saved.")
 print("Model training script finished.")
